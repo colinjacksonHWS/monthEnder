@@ -3,12 +3,23 @@ import os
 import win32com.client as win32
 import pandas as pd
 import pyodbc as sql
+import datetime
+import warnings
+
+
+warnings.filterwarnings('ignore',
+ r"^Dialect sqlite\+pysqlite does \*not\* support Decimal objects natively\, "
+ "and SQLAlchemy must convert from floating point - rounding errors and other "
+ "issues may occur\. Please consider storing Decimal numbers as strings or "
+ "integers on this platform for lossless storage\.$")
+
 
 
 def getSQLConnectionCursor():
 
     password = os.getenv('pass')
     username = os.getenv('user')
+
     global cnxn
     cnxn = sql.connect(DRIVER='{ODBC Driver 17 for SQL Server}', SERVER='172.16.21.75', DATABASE='BI_Finance_Objects', user = username, Password = password)
 
@@ -18,9 +29,57 @@ def getSQLConnectionCursor():
     return
 
 def monthEnder():
-    storedProc = ""
+    nowYear = datetime.datetime.now().strftime('%Y')
+    nowMonth_Num = datetime.datetime.now().strftime('%M')
+    nowMonth_Word = datetime.datetime.now().strftime('%B')
 
-    df = pandas.execute(storedProc)
+    foldername = "{}\\{}_{}\\".format(nowYear, nowMonth_Num, nowMonth_Word)
+    
+    path = "P:\\\Shared Services Operations\\\Month End Accrual Reports\\" + foldername
+    
+    getSQLConnectionCursor()
+    
+    getExamples = "SELECT DISTINCT dcm.GroupName FROM BI_DataMart..DimCompanyMaster dcm WHERE dcm.Business = 'External' ORDER BY 1"
+    storedProc = "EXEC [BI_Finance_Objects].[dbo].[usp_MonthEndBillingAccrual] '{}'"
+
+    df = pd.read_sql_query(getExamples, cnxn)
+
+    for index, item in df.iterrows():
+        if item[0] is not None:
+
+            today = datetime.date.today()
+            first = today.replace(day=1)
+            lastMonth = first - datetime.timedelta(days=1)
+            lMonth = lastMonth.strftime("%m %Y")
+
+            currentime = datetime.datetime.now()
+            mixed = currentime.strftime('%M %Y')
+            try:
+                outputTable = pd.read_sql_query(storedProc.format(item[0]), cnxn)
+            except:
+                print("Connection Severed")
+
+            outputTable = outputTable.sort_values("Facility")
+            outputTable = outputTable.sort_values("CandidateName")
+            outputTable = outputTable.sort_values("ShiftDate")
+            
+            if("Kindred" not in item[0]):
+                outputTable.drop('SourceFile', inplace=True, axis=1)
+
+            tableName ="{} Billing Accural {}.xlsx".format(item[0], lMonth)
+            try:
+                writer = pd.ExcelWriter(path + tableName)
+                # write dataframe to excel
+                outputTable.to_excel(writer, sheet_name='Data', freeze_panes=(1,0), index = False)
+                # save the excel
+                writer.save()
+            except Exception as e:
+                print("Connection severed {} ".format(str(e)))
+
+            print('DataFrame is written successfully to Excel File.')
+            #outputTable.to_excel(path + tableName)
+
+
 
 
 def sendEmail(subjectLine = None, billToContact = None, billToContact_CC = None, arCollector = None, body = None, filePath = None, chart = None, companyID = None, numberOfInvoices = None):
@@ -32,6 +91,9 @@ def sendEmail(subjectLine = None, billToContact = None, billToContact_CC = None,
     #subjectLine = "TEST Company ID#" xxxxx Test Hospital New Invoice(s) 0 of 0"
     #billToContact_CC = "eric.santovenia@healthtrustws.com; Troy.Raaidy@HealthTrustWS.com"
     billToContact_CC = ""
+
+    
+
 
     try:
         outlook = win32.Dispatch('outlook.application')
@@ -61,7 +123,6 @@ def sendEmail(subjectLine = None, billToContact = None, billToContact_CC = None,
         if not result:
             filePath = stripperOmatic(filePath)
 
-        filePath = pdfCompressor.main(filePath, filePath.replace(".pdf", "_.pdf"))
         attachment  = filePath
         mail.Attachments.Add(attachment)
 
@@ -77,3 +138,9 @@ def sendEmail(subjectLine = None, billToContact = None, billToContact_CC = None,
     uploadStatusOfSentEmail(filePath, Status)
     
     return
+
+def uploadStatusOfSentEmail():
+    print("Sent")
+
+
+monthEnder()
