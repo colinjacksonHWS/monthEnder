@@ -40,7 +40,9 @@ def monthEnder():
     getSQLConnectionCursor()
     
     getExamples = "SELECT DISTINCT dcm.GroupName FROM BI_DataMart..DimCompanyMaster dcm WHERE dcm.Business = 'External' ORDER BY 1"
-    storedProc = "EXEC [BI_Finance_Objects].[dbo].[usp_MonthEndBillingAccrual] '{}'"
+    
+    # format for facility name
+    storedProc = "EXEC [BI_Finance_Objects].[dbo].[usp_MonthEndBillingAccrual] null, '{}'"
 
     df = pd.read_sql_query(getExamples, cnxn)
 
@@ -67,6 +69,7 @@ def monthEnder():
                 outputTable.drop('SourceFile', inplace=True, axis=1)
 
             tableName ="{} Billing Accural {}.xlsx".format(item[0], lMonth)
+            
             try:
                 writer = pd.ExcelWriter(path + tableName)
                 # write dataframe to excel
