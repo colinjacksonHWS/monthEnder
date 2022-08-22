@@ -29,25 +29,48 @@ def getSQLConnectionCursor():
     return
 
 def monthEnder():
+
     nowYear = datetime.datetime.now().strftime('%Y')
     nowMonth_Num = datetime.datetime.now().strftime('%M')
     nowMonth_Word = datetime.datetime.now().strftime('%B')
+
+
 
     foldername = "{}\\{}_{}\\".format(nowYear, nowMonth_Num, nowMonth_Word)
     
     path = "P:\\\Shared Services Operations\\\Month End Accrual Reports\\" + foldername
     
     getSQLConnectionCursor()
-    
-    getExamples = "SELECT DISTINCT dcm.GroupName FROM BI_DataMart..DimCompanyMaster dcm WHERE dcm.Business = 'External' ORDER BY 1"
+
+    getFileInfo = "SELECT * FROM [BI_Finance_Objects].[dbo].[MonthEndAccrualAutomation]"
     
     # format for facility name
-    storedProc = "EXEC [BI_Finance_Objects].[dbo].[usp_MonthEndBillingAccrual] null, '{}'"
+    storedProc = "EXEC [BI_Finance_Objects].[dbo].[usp_MonthEndBillingAccrual] '{}', '{}'"
 
-    df = pd.read_sql_query(getExamples, cnxn)
 
-    for index, item in df.iterrows():
+    # Get the complete list of files
+    theTrueList = pd.read_sql_query(getFileInfo, cnxn)
+
+    # this is from the True List
+    df = pd.read_sql_query(storedProc, cnxn)
+
+
+    
+
+    
+    for index, item in theTrueList.iterrows():
         if item[0] is not None:
+            masta = item["Run By"]
+            print(masta)
+            if ("Facility" in masta ):
+                item["Facility"]
+            if ("Group Name" in masta ):
+                item["Client"]
+            if ("Division" in masta ):
+                item["Client"]
+                item["Facility"]
+
+
 
             today = datetime.date.today()
             first = today.replace(day=1)
@@ -56,6 +79,7 @@ def monthEnder():
 
             currentime = datetime.datetime.now()
             mixed = currentime.strftime('%M %Y')
+            
             try:
                 outputTable = pd.read_sql_query(storedProc.format(item[0]), cnxn)
             except:
@@ -104,15 +128,13 @@ def sendEmail(subjectLine = None, billToContact = None, billToContact_CC = None,
         mail.To = billToContact
         mail.CC = billToContact_CC
         mail.Subject = subjectLine
-        mail.HTMLBody = ('Dear Valued Client, <br /><br />\nThank you for doing business with HealthTrust Workforce Solutions.'
-        + ' Attached please find your new invoice(s).<br />' 
-        + "<br />{}".format(chart)
-        + "<br /><b><i>Did you know...</b></i> we accept payments via Check, ACH, or EFT? "
-        + "For any question or concerns regarding the attached items, please reach out to: HWS.AccountsReceivable@HealthTrustWS.com"
-        + "<br /><br />\n\nSincerely,<br />"
-        + arCollector 
-        + ", Finance Shared Services<br />HWS.AccountsReceivable@HealthTrustWS.com<br />HealthTrust Workforce Solutions | 1000 Sawgrass Corp Pkwy, 6th Floor | Sunrise, FL 33323"
-        + "<br />Click <a href=\"http://engage.healthtrustjobs.com/rate-your-healthtrust-experience\">here</a> to rate your HealthTrust experience!")
+        mail.HTMLBody = ('Hello All, <br /><br />\nHere is your accrual and billing report.'
+        + 'The attached file contains all information.  See column A for:<br /><br />\n'
+        + '•	Not Invoiced = accrual amounts<br /><br />\n'
+        + '•	Invoiced = billed amounts in the prior month'
+        + 'If you have any questions, please do not hesitate to reach out to us.<br /><br />\n'
+        + 'Thank you,<br /><br />\n'
+        + 'HWS Accounts Receivable HWS.AccountsReceivable@HealthTrustWS.com ')
 
         #mail.Body = '<h2>HTML Message body</h2>' #this field is optional
 
