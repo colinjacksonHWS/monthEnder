@@ -6,14 +6,7 @@ import pyodbc as sql
 import datetime
 import warnings
 
-
-warnings.filterwarnings('ignore',
- r"^Dialect sqlite\+pysqlite does \*not\* support Decimal objects natively\, "
- "and SQLAlchemy must convert from floating point - rounding errors and other "
- "issues may occur\. Please consider storing Decimal numbers as strings or "
- "integers on this platform for lossless storage\.$")
-
-
+from datetime import date, datetime, timedelta
 
 def getSQLConnectionCursor():
 
@@ -54,21 +47,53 @@ def monthEnder():
     # this is from the True List
     df = pd.read_sql_query(storedProc, cnxn)
 
+    currentime = datetime.datetime.now()
 
+    currentMonth = currentime.strftime('%M')
+    currentYear = currentime.strftime('%Y')
+
+    firstDate = get_first_date_of_current_month(currentYear, currentMonth)
+    lastDate = get_last_date_of_month(currentYear, currentMonth)
     
 
     
     for index, item in theTrueList.iterrows():
+        
         if item[0] is not None:
             masta = item["Run By"]
             print(masta)
+
             if ("Facility" in masta ):
-                item["Facility"]
+
+                fcltyName = item["Facility"]
+
+                df = pd.read_sql_query(storedProc.format(None,fcltyName), cnxn)
+
+                # filter df by date
+
+                outputTable = df
+
             if ("Group Name" in masta ):
-                item["Client"]
+
+                grpName = item["Client"]
+                df = pd.read_sql_query(storedProc.format(grpName, None), cnxn)
+
+                # filter df by date
+                df = df[(df['ShiftDate'] > firstDate) & (df['date'] < lastDate)]
+                
+                outputTable = df
+
             if ("Division" in masta ):
-                item["Client"]
-                item["Facility"]
+
+                grpName = item["Client"]
+                fcltyName = item["Facility"]
+
+                df = pd.read_sql_query(storedProc.format(grpName, None), cnxn)
+
+                df = df[(df['ShiftDate'] > firstDate) & (df['date'] < lastDate)]
+                
+                # sort by facility name
+                newDF = df["fcltyName"]
 
 
 
@@ -166,6 +191,38 @@ def sendEmail(subjectLine = None, billToContact = None, billToContact_CC = None,
 
 def uploadStatusOfSentEmail():
     print("Sent")
+
+
+def get_last_date_of_month(year, month):
+    """Return the last date of the month.
+    
+    Args:
+        year (int): Year, i.e. 2022
+        month (int): Month, i.e. 1 for January
+
+    Returns:
+        date (datetime): Last date of the current month
+    """
+    
+    if month == 12:
+        last_date = datetime(year, month, 31)
+    else:
+        last_date = datetime(year, month + 1, 1) + timedelta(days=-1)
+    
+    return last_date.strftime("%Y-%m-%d")
+
+def get_first_date_of_current_month(year, month):
+    """Return the first date of the month.
+
+    Args:
+        year (int): Year
+        month (int): Month
+
+    Returns:
+        date (datetime): First date of the current month
+    """
+    first_date = datetime(year, month, 1)
+    return first_date.strftime("%Y-%m-%d")
 
 
 monthEnder()
