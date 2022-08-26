@@ -124,10 +124,11 @@ def monthEnder():
             if("Kindred" not in item[0]):
                 outputTable.drop('SourceFile', inplace=True, axis=1)
 
-            tableName ="{} Billing Accural {}.xlsx".format(item[0], lMonth)
+            tableName = "{} Billing Accural {}.xlsx".format(item[0], lMonth)
             
             try:
-                writer = pd.ExcelWriter(path + tableName)
+                pathName = path + tableName
+                writer = pd.ExcelWriter(pathName)
                 # write dataframe to excel
                 outputTable.to_excel(writer, sheet_name='Data', freeze_panes=(1,0), index = False)
                 # save the excel
@@ -138,7 +139,20 @@ def monthEnder():
             print('DataFrame is written successfully to Excel File.')
             #outputTable.to_excel(path + tableName)
             
-            sendEmail()
+            try:
+                email = item["Email"]
+                emailCC = item["Email CC"]
+            except Exception as e:
+                print("Something is wrong with the email")
+                continue
+            
+            if email is None or email is "":
+                print("Main Email is empty!")
+                print("")
+                continue
+
+
+            sendEmail(subject, email, emailCC, pathName)
 
 
 
@@ -191,7 +205,6 @@ def sendEmail(subjectLine = None, billToContact = None, billToContact_CC = None,
     
     except Exception as e:
         #send email to AR team
-
         Status = ("Not Sent, Critical Email Module Failure. Contact ITG: " + str(e))
 
     uploadStatusOfSentEmail(filePath, Status)
