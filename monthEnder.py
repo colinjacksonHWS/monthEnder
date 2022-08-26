@@ -5,6 +5,9 @@ import pandas as pd
 import pyodbc as sql
 import datetime
 import warnings
+import re
+
+
 
 from datetime import date, datetime, timedelta
 
@@ -70,8 +73,10 @@ def monthEnder():
                 df = pd.read_sql_query(storedProc.format(None,fcltyName), cnxn)
 
                 # filter df by date
+                df = df[(df['ShiftDate'] > firstDate) & (df['date'] < lastDate)]
 
                 outputTable = df
+                subject = "{} ~ Accrual and Billing Report".format(fcltyName)
 
             if ("Group Name" in masta ):
 
@@ -82,6 +87,7 @@ def monthEnder():
                 df = df[(df['ShiftDate'] > firstDate) & (df['date'] < lastDate)]
                 
                 outputTable = df
+                subject = "{} ~ Accrual and Billing Report".format(grpName)
 
             if ("Division" in masta ):
 
@@ -93,7 +99,8 @@ def monthEnder():
                 df = df[(df['ShiftDate'] > firstDate) & (df['date'] < lastDate)]
                 
                 # sort by facility name
-                newDF = df["fcltyName"]
+                newDF = df.loc[fcltyName in df["Facility"]]
+                subject = "{} ~ Accrual and Billing Report".format(fcltyName)
 
 
 
@@ -130,11 +137,13 @@ def monthEnder():
 
             print('DataFrame is written successfully to Excel File.')
             #outputTable.to_excel(path + tableName)
+            
+            sendEmail()
 
 
 
 
-def sendEmail(subjectLine = None, billToContact = None, billToContact_CC = None, arCollector = None, body = None, filePath = None, chart = None, companyID = None, numberOfInvoices = None):
+def sendEmail(subjectLine = None, billToContact = None, billToContact_CC = None, filePath = None):
     #billToContact is a list separated by a semi-colon 
     
 
@@ -192,6 +201,15 @@ def sendEmail(subjectLine = None, billToContact = None, billToContact_CC = None,
 def uploadStatusOfSentEmail():
     print("Sent")
 
+def stripperOmatic(innie = None):
+
+    boom = re.match("^(?:[^\\\\]*\\\\){4}[^\\\\]+", innie)
+
+    newStrang = boom[0].strip()
+
+    outtie = innie.replace(boom[0], newStrang)
+
+    return outtie
 
 def get_last_date_of_month(year, month):
     """Return the last date of the month.
