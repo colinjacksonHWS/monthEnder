@@ -24,7 +24,7 @@ def getSQLConnectionCursor():
 
 def monthEnder():
 
-    pathStart = "P:\\Shared Services Operations\\Month End Accrual Reports\\"
+    #pathStart = "P:\\Shared Services Operations\\Month End Accrual Reports\\"
     pathStart = "C:\\Example\\"
 
     nowYear = datetime.now().strftime('%Y')
@@ -140,13 +140,11 @@ def monthEnder():
             lastMonth = first - timedelta(days=1)
             lMonth = lastMonth.strftime("%m %Y")
 
+            thisMonth = first("%m %Y")
+
             currentime = datetime.now()
             mixed = currentime.strftime('%M %Y')
             
-            # try:
-            #     outputTable = pd.read_sql_query(storedProc.format(item[0]), cnxn)
-            # except:
-            #     print("Connection Severed")
 
             outputTable = outputTable.sort_values("Facility")
             outputTable = outputTable.sort_values("CandidateName")
@@ -155,7 +153,7 @@ def monthEnder():
             if("Kindred" not in item[0]):
                 outputTable.drop('SourceFile', inplace=True, axis=1)
 
-            tableName = "{} Billing Accural {}.xlsx".format(fcltyName, lMonth)
+            tableName = "{} Billing Accrual {}.xlsx".format(fcltyName, nowMonth_Word)
             
             try:
                 pathName = path + tableName
@@ -203,7 +201,7 @@ def sendEmail(subjectLine = None, billToContact = None, billToContact_CC = None,
         mail.To = billToContact
         mail.CC = billToContact_CC
         mail.Subject = subjectLine
-        mail.HTMLBody = ('Hello All, <br /><br />\nHere is your accrual and billing report.'
+        mail.HTMLBody = ('Hello, <br /><br />\nHere is your accrual and billing report.'
         + 'The attached file contains all information. See column A for:<br /><br />\n'
         + '•	Not Invoiced = accrual amounts<br /><br />\n'
         + '•	Invoiced = billed amounts in the prior month<br /><br />\n'
